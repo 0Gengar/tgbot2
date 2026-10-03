@@ -6,7 +6,7 @@ import db
 
 db.init_db()
 
-TOKEN = '8856407895:AAHEHinpZkbd89WWexLXMUGvDeQgBPQPepc'
+TOKEN = 'НОВЫЙ_ТОКЕН_ПОСЛЕ_REVOKE'
 bot = telebot.TeleBot(TOKEN)
 
 user_data = {}
@@ -322,23 +322,25 @@ def show_all_birthdays(message):
 
 @bot.message_handler(commands=['help'])
 def show_help(message):
-    text = (
-        "🤖 **Доступные команды:**\n\n",
-        "👤 **Профиль:**\n",
-        "• /start — заполнить или показать анкету\n",
-        "• /profile — посмотреть свою анкету\n",
-        "• /edit_wishlist — изменить вишлист\n\n",
-        "🎂 **Календарь дней рождения:**\n",
-        "• /upcoming — ближайшие ДР за 30 дней\n",
-        "• /today — у кого ДР сегодня\n",
-        "• /birthdays — все дни рождения\n\n",
-        "👥 **Общее:**\n",
-        "• /all_users — список всех пользователей\n",
-        "• /help — эта справка\n\n",
-        "🎁 **Сборы (скоро):**\n",
-        "• /create_fund — создать сбор\n",
-    )
-    bot.send_message(message.chat.id, ''.join(text), parse_mode='Markdown')
+    text = """🤖 **Доступные команды:**
+
+👤 **Профиль:**
+• /start — заполнить или показать анкету
+• /profile — посмотреть свою анкету
+• /edit_wishlist — изменить вишлист
+
+🎂 **Календарь дней рождения:**
+• /upcoming — ближайшие ДР за 30 дней
+• /today — у кого ДР сегодня
+• /birthdays — все дни рождения
+
+👥 **Общее:**
+• /all_users — список всех пользователей
+• /help — эта справка
+
+🎁 **Сборы (скоро):**
+• /create_fund — создать сбор"""
+    bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
 
 if __name__ == '__main__':
