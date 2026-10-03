@@ -179,3 +179,7 @@ def mark_paid(event_id, user_id):
                 print(f"💸 {user_id} оплатил сбор #{event_id}")
                 return True
     return False
+
+
+def get_all_active_events():
+    return [e for e in events_db.values() if e['status'] == 'active']
