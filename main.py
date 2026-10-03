@@ -1,5 +1,4 @@
 import telebot
-from telebot import types
 
 
 TOKEN = '8856407895:AAGkQulOmWlMkAD4KDivUFGB6Kv1jzpWPlM'
