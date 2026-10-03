@@ -5,7 +5,7 @@ import db
 
 db.init_db()
 
-TOKEN = 'ВАШ_НОВЫЙ_ТОКЕН_ЗДЕСЬ'
+TOKEN = '8856407895:AAHnKzDYAaHUUrpCxJxtggI-BwUprTRML0Y'
 bot = telebot.TeleBot(TOKEN)
 
 user_data = {}
