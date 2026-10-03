@@ -105,3 +105,20 @@ def get_upcoming_birthdays(days_ahead=30):
 
     upcoming.sort(key=lambda x: x['days_left'])
     return upcoming
+
+
+def get_all_birthdays():
+    result = []
+
+    for user in users_db.values():
+        if not user.get('birth_day') or not user.get('birth_month'):
+            continue
+
+        result.append({
+            'user': user,
+            'month': user['birth_month'],
+            'day': user['birth_day']
+        })
+
+    result.sort(key=lambda x: (x['month'], x['day']))
+    return result
