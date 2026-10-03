@@ -265,6 +265,7 @@ def menu_funds(call):
     markup.add(
         types.InlineKeyboardButton("➕ Создать сбор", callback_data="fund_create"),
         types.InlineKeyboardButton("📋 Мои сборы", callback_data="fund_list"),
+        types.InlineKeyboardButton("📊 Все сборы", callback_data="fund_all"),
         types.InlineKeyboardButton("⬅️ Назад", callback_data="menu_main"),
     )
     bot.edit_message_text(
@@ -727,6 +728,59 @@ def show_my_funds(message):
         )
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
     send_main_menu(message.chat.id)
+
+@bot.callback_query_handler(func=lambda call: call.data == 'fund_all')
+def fund_all(call):
+    bot.answer_callback_query(call.id)
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+    show_all_funds(call.message)
+
+
+def show_all_funds(message):
+    events = db.get_all_active_events()
+    if not events:
+        bot.send_message(message.chat.id, "📭 Активных сборов нет.")
+        send_main_menu(message.chat.id)
+        return
+
+    bot.send_message(message.chat.id, f"📊 **Все активные сборы:** {len(events)}")
+    for e in events:
+        paid = sum(1 for p in e['participants'] if p['is_paid'])
+        total_p = len(e['participants'])
+        text = (
+            f"🎁 **{e['title']}**\n"
+            f"💰 {e['per_person_amount']} ₽ с человека\n"
+            f"👥 {paid}/{total_p} оплатили\n"
+            f"💳 Реквизиты: `{e['payment_details']}`"
+        )
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("💸 Перевести", callback_data=f"fund_show_{e['event_id']}"),
+            types.InlineKeyboardButton("✅ Я перевёл(а)", callback_data=f"fund_paid_{e['event_id']}")
+        )
+        bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=markup)
+
+    send_main_menu(message.chat.id)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('fund_show_'))
+def fund_show_details(call):
+    event_id = int(call.data.replace('fund_show_', ''))
+    event = db.get_event(event_id)
+    if not event:
+        bot.answer_callback_query(call.id, "Сбор не найден")
+        return
+
+    text = (
+        f"🎁 **{event['title']}**\n\n"
+        f"💰 Сумма: {event['per_person_amount']} ₽\n"
+        f"💳 Реквизиты:\n`{event['payment_details']}`\n\n"
+        f"Скопируй реквизиты и переведи. После оплаты нажми «✅ Я перевёл(а)»."
+    )
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("✅ Я перевёл(а)", callback_data=f"fund_paid_{event_id}"))
+    bot.send_message(call.message.chat.id, text, parse_mode='Markdown', reply_markup=markup)
+    bot.answer_callback_query(call.id)
 
 
 if __name__ == '__main__':
