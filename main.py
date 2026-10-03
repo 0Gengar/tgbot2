@@ -23,3 +23,6 @@ def start(message):
             reply_markup=get_gender_keyboard()
         )
 
+if __name__ == '__main__':
+    print("Бот запущен...")
+    bot.infinity_polling()
