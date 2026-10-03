@@ -27,7 +27,6 @@ def start(message):
             parse_mode='Markdown',
             reply_markup=get_gender_keyboard()
         )
-        bot.register_next_step_handler(message, process_gender)
 
 
 def get_gender_keyboard():
