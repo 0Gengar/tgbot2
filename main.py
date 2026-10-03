@@ -395,6 +395,7 @@ def show_profile(message):
 
     if not user:
         bot.send_message(message.chat.id, "Ты ещё не заполнил анкету. Напиши /start")
+        send_main_menu(message.chat.id)
         return
 
     gender_map = {'male': '👨 Мужской', 'female': '👩 Женский', 'unknown': '❓ Не указан'}
@@ -410,6 +411,7 @@ def show_profile(message):
         f"🎁 Вишлист: {user.get('wishlist') or 'не указан'}\n"
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
+    send_main_menu(message.chat.id)
 
 
 @bot.message_handler(commands=['edit_wishlist'])
@@ -419,6 +421,7 @@ def edit_wishlist(message):
 
     if not user:
         bot.send_message(message.chat.id, "Сначала заполни анкету командой /start")
+        send_main_menu(message.chat.id)
         return
 
     current = user.get('wishlist') or 'не указан'
@@ -506,10 +509,18 @@ def show_all_birthdays(message):
 @bot.message_handler(commands=['all_users'])
 def show_all_users(message):
     users = db.get_all_users()
+    if not users:
+        bot.send_message(message.chat.id, "📭 В базе нет пользователей.")
+        send_main_menu(message.chat.id)
+        return
+
     text = "👥 **Пользователи:**\n\n"
     for u in users:
-        text += f"• {u['full_name']} (@{u['username']}) — {u['gender']}, ДР: {u['birth_day']:02d}.{u['birth_month']:02d}\n"
+        gender_map = {'male': '👨', 'female': '👩', 'unknown': '❓'}
+        g = gender_map.get(u['gender'], '❓')
+        text += f"{g} {u['full_name']} (@{u['username']}) — ДР: {u['birth_day']:02d}.{u['birth_month']:02d}\n"
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
+    send_main_menu(message.chat.id)
 
 
 @bot.message_handler(commands=['help'])
@@ -538,6 +549,7 @@ def create_fund_start(message):
     user = db.get_user(user_id)
     if not user:
         bot.send_message(message.chat.id, "Сначала заполни анкету /start")
+        send_main_menu(message.chat.id)
         return
     fund_data[user_id] = {'chat_id': message.chat.id}
     bot.send_message(
@@ -684,6 +696,7 @@ def show_my_funds(message):
     events = db.get_events_by_creator(message.from_user.id)
     if not events:
         bot.send_message(message.chat.id, "📭 У тебя нет сборов.")
+        send_main_menu(message.chat.id)
         return
     text = "📋 **Твои сборы:**\n\n"
     for e in events:
@@ -693,6 +706,7 @@ def show_my_funds(message):
             f"   {paid}/{len(e['participants'])} оплатили | {e['per_person_amount']} ₽\n\n"
         )
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
+    send_main_menu(message.chat.id)
 
 
 if __name__ == '__main__':
