@@ -6,7 +6,7 @@ import db
 
 db.init_db()
 
-TOKEN = '8856407895:AAGz8korzqo9J-l3HSgZMHy2l4bmMDXZwqU'
+TOKEN = 'НОВЫЙ_ТОКЕН_ПОСЛЕ_REVOKE'
 bot = telebot.TeleBot(TOKEN)
 
 user_data = {}
@@ -277,7 +277,26 @@ def menu_funds(call):
 def fund_create(call):
     bot.answer_callback_query(call.id)
     bot.delete_message(call.message.chat.id, call.message.message_id)
-    create_fund_start(call.message)
+
+    user_id = call.from_user.id
+    user = db.get_user(user_id)
+
+    if not user:
+        bot.send_message(
+            call.message.chat.id,
+            "❌ Сначала заполни анкету.\n"
+            "Нажми «📝 Заполнить анкету» в разделе «👤 Профиль»."
+        )
+        send_main_menu(call.message.chat.id)
+        return
+
+    fund_data[user_id] = {'chat_id': call.message.chat.id}
+    bot.send_message(
+        call.message.chat.id,
+        "🎁 **Создание сбора**\n\nШаг 1/5: Введи **название сбора**.",
+        parse_mode='Markdown'
+    )
+    bot.register_next_step_handler(call.message, fund_step_title)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'fund_list')
