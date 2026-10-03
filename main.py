@@ -6,7 +6,7 @@ import db
 
 db.init_db()
 
-TOKEN = 'НОВЫЙ_ТОКЕН_ПОСЛЕ_REVOKE'
+TOKEN = '8856407895:AAHEHinpZkbd89WWexLXMUGvDeQgBPQPepc'
 bot = telebot.TeleBot(TOKEN)
 
 user_data = {}
