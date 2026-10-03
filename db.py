@@ -122,3 +122,54 @@ def get_all_birthdays():
 
     result.sort(key=lambda x: (x['month'], x['day']))
     return result
+
+
+events_db = {}
+event_id_counter = [1]
+
+
+def create_event(chat_id, creator_id, title, event_type, target_user_id, total_amount, per_person_amount, payment_details, participants):
+    event_id = event_id_counter[0]
+    event_id_counter[0] += 1
+
+    events_db[event_id] = {
+        'event_id': event_id,
+        'chat_id': chat_id,
+        'creator_id': creator_id,
+        'title': title,
+        'event_type': event_type,
+        'target_user_id': target_user_id,
+        'total_amount': total_amount,
+        'per_person_amount': per_person_amount,
+        'payment_details': payment_details,
+        'status': 'active',
+        'participants': participants
+    }
+    print(f"📦 Создан сбор #{event_id}: {title} ({len(participants)} участников)")
+    return event_id
+
+
+def get_event(event_id):
+    return events_db.get(event_id)
+
+
+def get_events_by_creator(creator_id):
+    return [e for e in events_db.values() if e['creator_id'] == creator_id]
+
+
+def mark_paid(event_id, user_id):
+    if event_id in events_db:
+        for p in events_db[event_id]['participants']:
+            if p['user_id'] == user_id:
+                p['is_paid'] = True
+                print(f"💸 {user_id} оплатил сбор #{event_id}")
+                return True
+    return False
+
+
+def get_payers_by_gender(gender):
+    return [u for u in users_db.values() if u.get('gender') == gender and u.get('is_active_payer')]
+
+
+def get_all_active_payers():
+    return [u for u in users_db.values() if u.get('is_active_payer')]
