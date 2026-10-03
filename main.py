@@ -1,11 +1,12 @@
 import telebot
 from telebot import types
 import re
+from datetime import date
 import db
 
 db.init_db()
 
-TOKEN = '8856407895:AAHnKzDYAaHUUrpCxJxtggI-BwUprTRML0Y'
+TOKEN = 'ВАШ_НОВЫЙ_ТОКЕН_ЗДЕСЬ'
 bot = telebot.TeleBot(TOKEN)
 
 user_data = {}
@@ -144,6 +145,7 @@ def process_wishlist(message):
         message.chat.id,
         "✅ Анкета заполнена! Спасибо.\n\n"
         "Теперь ты можешь посмотреть свой профиль командой /profile.\n"
+        "Все доступные команды — /help.\n"
         "А организаторы могут создавать сборы командой /create_fund (скоро)."
     )
 
@@ -172,6 +174,39 @@ def show_profile(message):
     )
 
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
+
+
+@bot.message_handler(commands=['edit_wishlist'])
+def edit_wishlist(message):
+    user_id = message.from_user.id
+    user = db.get_user(user_id)
+
+    if not user:
+        bot.send_message(message.chat.id, "Сначала заполни анкету командой /start")
+        return
+
+    current = user.get('wishlist') or 'не указан'
+    bot.send_message(
+        message.chat.id,
+        f"🎁 Твой текущий вишлист:\n_{current}_\n\n"
+        "Напиши новый вишлист или «Пропустить», чтобы удалить:",
+        parse_mode='Markdown'
+    )
+    bot.register_next_step_handler(message, process_new_wishlist)
+
+
+def process_new_wishlist(message):
+    user_id = message.from_user.id
+    text = message.text.strip()
+
+    if text.lower() in ['пропустить', 'нет', '-']:
+        db.update_wishlist(user_id, None)
+        bot.send_message(message.chat.id, "✅ Вишлист удалён.")
+    else:
+        db.update_wishlist(user_id, text)
+        bot.send_message(message.chat.id, "✅ Вишлист обновлён!")
+
+    show_profile(message)
 
 
 @bot.message_handler(commands=['all_users'])
@@ -244,6 +279,65 @@ def show_today(message):
             text += f"🎁 Вишлист: {user['wishlist']}\n"
         text += "\n"
 
+    bot.send_message(message.chat.id, text, parse_mode='Markdown')
+
+
+@bot.message_handler(commands=['birthdays'])
+def show_all_birthdays(message):
+    birthdays = db.get_all_birthdays()
+
+    if not birthdays:
+        bot.send_message(message.chat.id, "📭 В базе пока нет дней рождения.")
+        return
+
+    text = "📅 **Все дни рождения:**\n"
+
+    month_names = {
+        1: "Январь", 2: "Февраль", 3: "Март", 4: "Апрель",
+        5: "Май", 6: "Июнь", 7: "Июль", 8: "Август",
+        9: "Сентябрь", 10: "Октябрь", 11: "Ноябрь", 12: "Декабрь"
+    }
+
+    current_month = None
+
+    for item in birthdays:
+        user = item['user']
+        month = item['month']
+        day = item['day']
+
+        if month != current_month:
+            text += f"\n🗓 **{month_names[month]}**\n"
+            current_month = month
+
+        text += f"   • {day:02d}.{month:02d} — {user['full_name']}"
+        if user.get('username'):
+            text += f" (@{user['username']})"
+        if user.get('birth_year'):
+            age = date.today().year - user['birth_year']
+            text += f" ({age} лет)"
+        text += "\n"
+
+    bot.send_message(message.chat.id, text, parse_mode='Markdown')
+
+
+@bot.message_handler(commands=['help'])
+def show_help(message):
+    text = (
+        "🤖 **Доступные команды:**\n\n"
+        "👤 **Профиль:**\n"
+        "• /start — заполнить или показать анкету\n"
+        "• /profile — посмотреть свою анкету\n"
+        "• /edit_wishlist — изменить вишлист\n\n"
+        "🎂 **Календарь дней рождения:**\n"
+        "• /upcoming — ближайшие ДР за 30 дней\n"
+        "• /today — у кого ДР сегодня\n"
+        "• /birthdays — все дни рождения\n\n"
+        "👥 **Общее:**\n"
+        "• /all_users — список всех пользователей\n"
+        "• /help — эта справка\n\n"
+        "🎁 **Сборы (скоро):**\n"
+        "• /create_fund — создать сбор\n"
+    )
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
 
