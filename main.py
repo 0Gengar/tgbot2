@@ -324,19 +324,7 @@ def show_all_birthdays(message):
 def show_help(message):
     text = (
         "🤖 **Доступные команды:**\n\n"
-        "👤 **Профиль:**\n"
-        "• /start — заполнить или показать анкету\n"
-        "• /profile — посмотреть свою анкету\n"
-        "• /edit_wishlist — изменить вишлист\n\n"
-        "🎂 **Календарь дней рождения:**\n"
-        "• /upcoming — ближайшие ДР за 30 дней\n"
-        "• /today — у кого ДР сегодня\n"
-        "• /birthdays — все дни рождения\n\n"
-        "👥 **Общее:**\n"
-        "• /all_users — список всех пользователей\n"
-        "• /help — эта справка\n\n"
-        "🎁 **Сборы (скоро):**\n"
-        "• /create_fund — создать сбор\n"
+        ...
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
