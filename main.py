@@ -312,6 +312,229 @@ def show_help(message):
     )
     bot.send_message(message.chat.id, text)
 
+# ============ МАСТЕР СБОРОВ ============
+
+fund_data = {}
+
+
+@bot.message_handler(commands=['create_fund'])
+def create_fund_start(message):
+    user_id = message.from_user.id
+    user = db.get_user(user_id)
+
+    if not user:
+        bot.send_message(message.chat.id, "Сначала заполни анкету командой /start")
+        return
+
+    fund_data[user_id] = {'chat_id': message.chat.id}
+    bot.send_message(
+        message.chat.id,
+        "🎁 **Создание сбора**\n\n"
+        "Шаг 1/5: Введи **название сбора**.\n"
+        "Например: «День рождения Алексея» или «Корпоратив».",
+        parse_mode='Markdown'
+    )
+    bot.register_next_step_handler(message, fund_step_title)
+
+
+def fund_step_title(message):
+    user_id = message.from_user.id
+    fund_data[user_id]['title'] = message.text.strip()
+
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton("🎂 День рождения", callback_data="fund_type_birthday"),
+        types.InlineKeyboardButton("🎖 23 Февраля", callback_data="fund_type_men_holiday"),
+        types.InlineKeyboardButton("🌷 8 Марта", callback_data="fund_type_women_holiday"),
+        types.InlineKeyboardButton("🎉 Корпоратив", callback_data="fund_type_party"),
+        types.InlineKeyboardButton("✏️ Другое", callback_data="fund_type_custom"),
+    )
+    bot.send_message(
+        message.chat.id,
+        "Шаг 2/5: Выбери **тип события**:",
+        reply_markup=markup
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('fund_type_'))
+def fund_step_type(call):
+    user_id = call.from_user.id
+    fund_data[user_id]['event_type'] = call.data.replace('fund_type_', '')
+
+    bot.answer_callback_query(call.id)
+    bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text="Шаг 3/5: Введи **сумму сбора**.\n"
+             "Например: `5000` (общая сумма) или `500 с человека`.\n"
+             "Если с человека — бот рассчитает итог автоматически.",
+        parse_mode='Markdown'
+    )
+    bot.register_next_step_handler(call.message, fund_step_amount)
+
+
+def fund_step_amount(message):
+    user_id = message.from_user.id
+    text = message.text.strip().lower()
+
+    per_person = None
+    total = None
+
+    match_per = re.search(r'(\d+)\s*с\s*человека', text)
+    if match_per:
+        per_person = int(match_per.group(1))
+    else:
+        match_total = re.search(r'(\d+)', text)
+        if match_total:
+            total = int(match_total.group(1))
+        else:
+            bot.send_message(message.chat.id, "❌ Не понял сумму. Попробуй ещё раз.")
+            bot.register_next_step_handler(message, fund_step_amount)
+            return
+
+    fund_data[user_id]['total_amount'] = total
+    fund_data[user_id]['per_person_amount'] = per_person
+
+    bot.send_message(
+        message.chat.id,
+        "Шаг 4/5: Введи **реквизиты для оплаты**.\n"
+        "Например: `Сбер 1234 5678 9012 3456 Иван И.`"
+    )
+    bot.register_next_step_handler(message, fund_step_requisites)
+
+
+def fund_step_requisites(message):
+    user_id = message.from_user.id
+    fund_data[user_id]['payment_details'] = message.text.strip()
+
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton("👥 Все активные", callback_data="fund_pay_all"),
+        types.InlineKeyboardButton("👨 Только мужчины", callback_data="fund_pay_male"),
+        types.InlineKeyboardButton("👩 Только женщины", callback_data="fund_pay_female"),
+    )
+    bot.send_message(
+        message.chat.id,
+        "Шаг 5/5: Кого включить в сбор?",
+        reply_markup=markup
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('fund_pay_'))
+def fund_step_payers(call):
+    user_id = call.from_user.id
+    choice = call.data.replace('fund_pay_', '')
+
+    if choice == 'all':
+        participants = db.get_all_active_payers()
+    elif choice == 'male':
+        participants = db.get_payers_by_gender('male')
+    elif choice == 'female':
+        participants = db.get_payers_by_gender('female')
+    else:
+        participants = []
+
+    if not participants:
+        bot.answer_callback_query(call.id, "Нет подходящих участников")
+        return
+
+    fund = fund_data[user_id]
+
+    if fund['per_person_amount']:
+        per_person = fund['per_person_amount']
+        total = per_person * len(participants)
+    else:
+        total = fund['total_amount']
+        per_person = round(total / len(participants), 2)
+
+    fund['total_amount'] = total
+    fund['per_person_amount'] = per_person
+
+    participants_list = [
+        {'user_id': p['user_id'], 'full_name': p['full_name'], 'username': p.get('username'), 'is_paid': False}
+        for p in participants
+    ]
+
+    event_id = db.create_event(
+        chat_id=call.message.chat.id,
+        creator_id=user_id,
+        title=fund['title'],
+        event_type=fund['event_type'],
+        target_user_id=None,
+        total_amount=total,
+        per_person_amount=per_person,
+        payment_details=fund['payment_details'],
+        participants=participants_list
+    )
+
+    bot.answer_callback_query(call.id)
+    bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=f"✅ Сбор **«{fund['title']}»** создан!\n\n"
+             f"💰 Сумма: {total} ₽ (по {per_person} ₽ с человека)\n"
+             f"👥 Участников: {len(participants)}\n\n"
+             f"Рассылка в ЛС сейчас начнётся.",
+        parse_mode='Markdown'
+    )
+
+    # Рассылка в ЛС
+    for p in participants_list:
+        try:
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("✅ Я перевёл(а)", callback_data=f"fund_paid_{event_id}"))
+            bot.send_message(
+                p['user_id'],
+                f"🔔 **Сбор: {fund['title']}**\n\n"
+                f"💰 Сумма: {per_person} ₽\n"
+                f"💳 Реквизиты:\n`{fund['payment_details']}`\n\n"
+                f"После оплаты нажми кнопку ниже 👇",
+                parse_mode='Markdown',
+                reply_markup=markup
+            )
+        except Exception as e:
+            print(f"⚠️ Не удалось отправить {p['user_id']}: {e}")
+
+    del fund_data[user_id]
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('fund_paid_'))
+def fund_mark_paid(call):
+    event_id = int(call.data.replace('fund_paid_', ''))
+    user_id = call.from_user.id
+
+    if db.mark_paid(event_id, user_id):
+        bot.answer_callback_query(call.id, "✅ Отмечено!")
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="✅ Спасибо! Ты отметил оплату."
+        )
+    else:
+        bot.answer_callback_query(call.id, "❌ Ошибка")
+
+
+@bot.message_handler(commands=['my_funds'])
+def show_my_funds(message):
+    user_id = message.from_user.id
+    events = db.get_events_by_creator(user_id)
+
+    if not events:
+        bot.send_message(message.chat.id, "📭 У тебя пока нет созданных сборов.")
+        return
+
+    text = "📋 **Твои сборы:**\n\n"
+    for e in events:
+        paid = sum(1 for p in e['participants'] if p['is_paid'])
+        total_p = len(e['participants'])
+        status = "🟢 Активен" if e['status'] == 'active' else "🔴 Закрыт"
+        text += (
+            f"#{e['event_id']} — **{e['title']}**\n"
+            f"   {status} | {paid}/{total_p} оплатили\n"
+            f"   💰 {e['per_person_amount']} ₽ с человека\n\n"
+        )
+
+    bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
 if __name__ == '__main__':
     print("Бот запущен...")
