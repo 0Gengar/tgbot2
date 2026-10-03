@@ -791,6 +791,8 @@ def fund_mark_paid(call):
             call.message.chat.id, call.message.message_id,
             "✅ Спасибо! Ты отметил оплату."
         )
+        # Запоминаем отредактированное сообщение, чтобы потом удалить
+        remember_message(call.message.chat.id, call.message.message_id)
     else:
         bot.answer_callback_query(call.id, "❌ Ошибка")
 
