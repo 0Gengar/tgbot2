@@ -1,6 +1,11 @@
 import sqlite3
+import os
 
-DB_NAME = 'bot.db'
+# Проверяем, есть ли папка /data (на хостинге). Если нет — используем текущую (локально).
+if os.path.isdir('/data'):
+    DB_NAME = '/data/bot.db'
+else:
+    DB_NAME = 'bot.db'
 
 
 def init_db():
