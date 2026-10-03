@@ -7,7 +7,7 @@ import db
 db.init_db()
 
 # Токен (лучше вынести в .env, но пока оставим так для теста)
-TOKEN = '8856407895:AAHnKzDYAaHUUrpCxJxtggI-BwUprTRML0Y'
+TOKEN = 'ВАШ_НОВЫЙ_ТОКЕН_ЗДЕСЬ'
 bot = telebot.TeleBot(TOKEN)
 
 # Временное хранилище для данных анкеты (в памяти)
@@ -19,12 +19,10 @@ user_data = {}
 def start(message):
     user_id = message.from_user.id
     user = db.get_user(user_id)
-
+    
     if user:
-        # Пользователь уже есть — показываем профиль
         show_profile(message)
     else:
-        # Новый пользователь — начинаем анкету
         bot.send_message(
             message.chat.id,
             f"Привет, {message.from_user.first_name}! 👋\n\n"
@@ -34,8 +32,7 @@ def start(message):
             parse_mode='Markdown',
             reply_markup=get_gender_keyboard()
         )
-
-
+        bot.register_next_step_handler(message, process_gender)
 
 
 def get_gender_keyboard():
@@ -46,16 +43,16 @@ def get_gender_keyboard():
     return markup
 
 
-# ---------- ОБРАБОТКА ВЫБОРА ПОЛА ----------
+# ---------- ОБРАБОТКА ВЫБОРА ПОЛА (кнопкой) ----------
 @bot.callback_query_handler(func=lambda call: call.data.startswith('gender_'))
 def callback_gender(call):
     user_id = call.from_user.id
-    gender = call.data.split('_')[1]  # 'male' или 'female'
-
+    gender = call.data.split('_')[1]
+    
     if user_id not in user_data:
         user_data[user_id] = {}
     user_data[user_id]['gender'] = gender
-
+    
     bot.answer_callback_query(call.id)
     bot.edit_message_text(
         chat_id=call.message.chat.id,
@@ -67,14 +64,39 @@ def callback_gender(call):
     bot.register_next_step_handler(call.message, process_birthday)
 
 
+# ---------- ОБРАБОТКА ПОЛА (текстом, если не нажал кнопку) ----------
+def process_gender(message):
+    user_id = message.from_user.id
+    text = message.text.strip().lower()
+    
+    if text in ['мужской', 'муж', 'м', 'male']:
+        gender = 'male'
+    elif text in ['женский', 'жен', 'ж', 'female']:
+        gender = 'female'
+    else:
+        bot.send_message(message.chat.id, "Пожалуйста, выбери пол кнопками выше 👆")
+        bot.register_next_step_handler(message, process_gender)
+        return
+    
+    if user_id not in user_data:
+        user_data[user_id] = {}
+    user_data[user_id]['gender'] = gender
+    
+    bot.send_message(
+        message.chat.id,
+        "Отлично! Теперь напиши свою **дату рождения** в формате `ДД.ММ` (например, `15.03`).",
+        parse_mode='Markdown'
+    )
+    bot.register_next_step_handler(message, process_birthday)
+
+
 # ---------- ОБРАБОТКА ДАТЫ РОЖДЕНИЯ ----------
 def process_birthday(message):
     user_id = message.from_user.id
     text = message.text.strip()
-
-    # Проверяем формат ДД.ММ или ДД.ММ.ГГГГ
+    
     match = re.match(r'^(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?$', text)
-
+    
     if not match:
         bot.send_message(
             message.chat.id,
@@ -83,19 +105,19 @@ def process_birthday(message):
         )
         bot.register_next_step_handler(message, process_birthday)
         return
-
+    
     day, month, year = match.groups()
     day, month = int(day), int(month)
-
+    
     if not (1 <= day <= 31 and 1 <= month <= 12):
         bot.send_message(message.chat.id, "❌ Такой даты не существует. Попробуй ещё раз.")
         bot.register_next_step_handler(message, process_birthday)
         return
-
+    
     user_data[user_id]['birth_day'] = day
     user_data[user_id]['birth_month'] = month
     user_data[user_id]['birth_year'] = int(year) if year else None
-
+    
     bot.send_message(
         message.chat.id,
         "Принято! 📅\n\n"
@@ -109,10 +131,9 @@ def process_birthday(message):
 def process_wishlist(message):
     user_id = message.from_user.id
     text = message.text.strip()
-
+    
     wishlist = None if text.lower() in ['пропустить', 'нет', '-'] else text
-
-    # Сохраняем всё в базу
+    
     db.save_user(
         user_id=user_id,
         username=message.from_user.username,
@@ -122,13 +143,12 @@ def process_wishlist(message):
         birth_month=user_data[user_id]['birth_month'],
         birth_year=user_data[user_id]['birth_year']
     )
-
+    
     if wishlist:
         db.update_wishlist(user_id, wishlist)
-
-    # Очищаем временные данные
+    
     del user_data[user_id]
-
+    
     bot.send_message(
         message.chat.id,
         "✅ Анкета заполнена! Спасибо.\n\n"
@@ -142,22 +162,35 @@ def process_wishlist(message):
 def show_profile(message):
     user_id = message.from_user.id
     user = db.get_user(user_id)
-
+    
     if not user:
         bot.send_message(message.chat.id, "Ты ещё не заполнил анкету. Напиши /start")
         return
-
-    # user = (user_id, username, full_name, gender, birth_day, birth_month, birth_year, wishlist, ...)
+    
     gender_map = {'male': '👨 Мужской', 'female': '👩 Женский', 'unknown': '❓ Не указан'}
-
+    
+    birth = f"{user['birth_day']:02d}.{user['birth_month']:02d}"
+    if user.get('birth_year'):
+        birth += f".{user['birth_year']}"
+    
     text = (
-            f"📋 **Твоя анкета:**\n\n"
-            f"👤 Имя: {user[2]}\n"
-            f"⚧ Пол: {gender_map.get(user[3], '❓')}\n"
-            f"🎂 Дата рождения: {user[4]:02d}.{user[5]:02d}" + (f".{user[6]}" if user[6] else "") + "\n"
-                                                                                                   f"🎁 Вишлист: {user[7] if user[7] else 'не указан'}\n"
+        f"📋 **Твоя анкета:**\n\n"
+        f"👤 Имя: {user['full_name']}\n"
+        f"⚧ Пол: {gender_map.get(user['gender'], '❓')}\n"
+        f"🎂 Дата рождения: {birth}\n"
+        f"🎁 Вишлист: {user.get('wishlist') or 'не указан'}\n"
     )
+    
+    bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
+
+# ---------- КОМАНДА /all_users (только для тестов) ----------
+@bot.message_handler(commands=['all_users'])
+def show_all_users(message):
+    users = db.get_all_users()
+    text = "👥 **Пользователи в базе:**\n\n"
+    for u in users:
+        text += f"• {u['full_name']} (@{u['username']}) — {u['gender']}, ДР: {u['birth_day']:02d}.{u['birth_month']:02d}\n"
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
 
