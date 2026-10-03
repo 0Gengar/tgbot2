@@ -39,10 +39,15 @@ users_db = {
     }
 }
 
+events_db = {}
+event_id_counter = [1]
+
 
 def init_db():
     print("Инициализация БД (в памяти): загружено", len(users_db), "пользователей")
 
+
+# ============ ПОЛЬЗОВАТЕЛИ ============
 
 def get_user(user_id):
     return users_db.get(user_id)
@@ -73,6 +78,16 @@ def update_wishlist(user_id, wishlist):
 def get_all_users():
     return list(users_db.values())
 
+
+def get_payers_by_gender(gender):
+    return [u for u in users_db.values() if u.get('gender') == gender and u.get('is_active_payer')]
+
+
+def get_all_active_payers():
+    return [u for u in users_db.values() if u.get('is_active_payer')]
+
+
+# ============ КАЛЕНДАРЬ ============
 
 def get_upcoming_birthdays(days_ahead=30):
     today = date.today()
@@ -124,11 +139,10 @@ def get_all_birthdays():
     return result
 
 
-events_db = {}
-event_id_counter = [1]
+# ============ СОБЫТИЯ / СБОРЫ ============
 
-
-def create_event(chat_id, creator_id, title, event_type, target_user_id, total_amount, per_person_amount, payment_details, participants):
+def create_event(chat_id, creator_id, title, event_type, target_user_id,
+                 total_amount, per_person_amount, payment_details, participants):
     event_id = event_id_counter[0]
     event_id_counter[0] += 1
 
@@ -165,11 +179,3 @@ def mark_paid(event_id, user_id):
                 print(f"💸 {user_id} оплатил сбор #{event_id}")
                 return True
     return False
-
-
-def get_payers_by_gender(gender):
-    return [u for u in users_db.values() if u.get('gender') == gender and u.get('is_active_payer')]
-
-
-def get_all_active_payers():
-    return [u for u in users_db.values() if u.get('is_active_payer')]
