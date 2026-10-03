@@ -309,6 +309,7 @@ def show_help(message):
         "• /help — эта справка\n\n"
         "🎁 Сборы (скоро):\n"
         "• /create_fund — создать сбор"
+        "• /my_funds — мои сборы\n"
     )
     bot.send_message(message.chat.id, text)
 
