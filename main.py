@@ -308,7 +308,7 @@ def show_help(message):
         "• /all_users — список всех пользователей\n"
         "• /help — эта справка\n\n"
         "🎁 Сборы (скоро):\n"
-        "• /create_fund — создать сбор"
+        "• /create_fund — создать сбор\n"
         "• /my_funds — мои сборы\n"
     )
     bot.send_message(message.chat.id, text)
