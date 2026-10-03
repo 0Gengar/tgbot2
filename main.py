@@ -6,18 +6,12 @@ import db
 
 db.init_db()
 
-TOKEN = '8856407895:AAGz8korzqo9J-l3HSgZMHy2l4bmMDXZwqU'
+TOKEN = 'НОВЫЙ_ТОКЕН_ПОСЛЕ_REVOKE'
 bot = telebot.TeleBot(TOKEN)
 
 user_data = {}
 menu_messages = {}
 fund_data = {}
-
-def fake_message_from_call(call):
-    """Создаёт объект message с правильным from_user из call."""
-    msg = call.message
-    msg.from_user = call.from_user
-    return msg
 
 
 # ============ ГЛАВНОЕ МЕНЮ ============
@@ -105,14 +99,88 @@ def profile_fill(call):
 def profile_view(call):
     bot.answer_callback_query(call.id)
     bot.delete_message(call.message.chat.id, call.message.message_id)
-    show_profile(call.message)
+
+    user_id = call.from_user.id
+    user = db.get_user(user_id)
+
+    if not user:
+        bot.send_message(
+            call.message.chat.id,
+            "❌ Ты ещё не заполнил анкету.\n"
+            "Нажми «📝 Заполнить анкету» в разделе «👤 Профиль»."
+        )
+        send_main_menu(call.message.chat.id)
+        return
+
+    gender_map = {'male': '👨 Мужской', 'female': '👩 Женский', 'unknown': '❓ Не указан'}
+    birth = f"{user['birth_day']:02d}.{user['birth_month']:02d}"
+    if user.get('birth_year'):
+        birth += f".{user['birth_year']}"
+
+    text = (
+        f"📋 **Твоя анкета:**\n\n"
+        f"👤 Имя: {user['full_name']}\n"
+        f"⚧ Пол: {gender_map.get(user['gender'], '❓')}\n"
+        f"🎂 Дата рождения: {birth}\n"
+        f"🎁 Вишлист: {user.get('wishlist') or 'не указан'}\n"
+    )
+    bot.send_message(call.message.chat.id, text, parse_mode='Markdown')
+    send_main_menu(call.message.chat.id)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'profile_wishlist')
 def profile_wishlist(call):
     bot.answer_callback_query(call.id)
     bot.delete_message(call.message.chat.id, call.message.message_id)
-    edit_wishlist(call.message)
+
+    user_id = call.from_user.id
+    user = db.get_user(user_id)
+
+    if not user:
+        bot.send_message(
+            call.message.chat.id,
+            "❌ Ты ещё не заполнил анкету.\n"
+            "Нажми «📝 Заполнить анкету» в разделе «👤 Профиль»."
+        )
+        send_main_menu(call.message.chat.id)
+        return
+
+    current = user.get('wishlist') or 'не указан'
+    bot.send_message(
+        call.message.chat.id,
+        f"🎁 Твой текущий вишлист:\n_{current}_\n\n"
+        "Напиши новый вишлист или «Пропустить», чтобы удалить:",
+        parse_mode='Markdown'
+    )
+    bot.register_next_step_handler(call.message, process_new_wishlist)
+
+
+def process_new_wishlist(message):
+    user_id = message.from_user.id
+    text = message.text.strip()
+
+    if text.lower() in ['пропустить', 'нет', '-']:
+        db.update_wishlist(user_id, None)
+        bot.send_message(message.chat.id, "✅ Вишлист удалён.")
+    else:
+        db.update_wishlist(user_id, text)
+        bot.send_message(message.chat.id, "✅ Вишлист обновлён!")
+
+    user = db.get_user(user_id)
+    gender_map = {'male': '👨 Мужской', 'female': '👩 Женский', 'unknown': '❓ Не указан'}
+    birth = f"{user['birth_day']:02d}.{user['birth_month']:02d}"
+    if user.get('birth_year'):
+        birth += f".{user['birth_year']}"
+
+    text_out = (
+        f"📋 **Твоя анкета:**\n\n"
+        f"👤 Имя: {user['full_name']}\n"
+        f"⚧ Пол: {gender_map.get(user['gender'], '❓')}\n"
+        f"🎂 Дата рождения: {birth}\n"
+        f"🎁 Вишлист: {user.get('wishlist') or 'не указан'}\n"
+    )
+    bot.send_message(message.chat.id, text_out, parse_mode='Markdown')
+    send_main_menu(message.chat.id)
 
 
 # ============ ПОДМЕНЮ: КАЛЕНДАРЬ ============
@@ -360,20 +428,6 @@ def edit_wishlist(message):
         parse_mode='Markdown'
     )
     bot.register_next_step_handler(message, process_new_wishlist)
-
-
-def process_new_wishlist(message):
-    user_id = message.from_user.id
-    text = message.text.strip()
-
-    if text.lower() in ['пропустить', 'нет', '-']:
-        db.update_wishlist(user_id, None)
-        bot.send_message(message.chat.id, "✅ Вишлист удалён.")
-    else:
-        db.update_wishlist(user_id, text)
-        bot.send_message(message.chat.id, "✅ Вишлист обновлён!")
-
-    show_profile(message)
 
 
 # ============ КАЛЕНДАРЬ ============
