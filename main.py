@@ -60,7 +60,7 @@ def delete_user_message(message):
 
 # ============ ГЛАВНОЕ МЕНЮ ============
 
-def send_main_menu(chat_id, edit=False, message_id=None):
+def send_main_menu(chat_id, edit=False, message_id=None, clean=True):
     text = "🏠 **Главное меню**\n\nВыбери раздел:"
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
@@ -73,7 +73,8 @@ def send_main_menu(chat_id, edit=False, message_id=None):
     if edit and message_id:
         safe_edit(chat_id, message_id, text, parse_mode='Markdown', reply_markup=markup)
     else:
-        clear_chat(chat_id)
+        if clean:
+            clear_chat(chat_id)
         safe_send(chat_id, text, parse_mode='Markdown', reply_markup=markup)
 
 
