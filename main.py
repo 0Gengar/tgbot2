@@ -135,7 +135,7 @@ def profile_view(call):
             call.message.chat.id,
             "❌ Ты ещё не заполнил анкету.\nНажми «📝 Заполнить анкету»."
         )
-        send_main_menu(call.message.chat.id)
+        send_main_menu(call.message.chat.id, clean=False)
         return
 
     gender_map = {'male': '👨 Мужской', 'female': '👩 Женский', 'unknown': '❓ Не указан'}
@@ -151,7 +151,7 @@ def profile_view(call):
         f"🎁 Вишлист: {user.get('wishlist') or 'не указан'}\n"
     )
     safe_send(call.message.chat.id, text, parse_mode='Markdown')
-    send_main_menu(call.message.chat.id)
+    send_main_menu(call.message.chat.id, clean=False)   
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'profile_wishlist')
