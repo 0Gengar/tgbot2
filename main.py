@@ -11,8 +11,6 @@ bot = telebot.TeleBot(TOKEN)
 
 user_data = {}
 fund_data = {}
-
-# Хранилище ID сообщений бота для каждого чата
 last_bot_messages = {}
 
 
@@ -25,7 +23,6 @@ def remember_message(chat_id, message_id):
 
 
 def clear_chat(chat_id, keep_last=0):
-    """Удаляет все запомненные сообщения бота в чате."""
     if chat_id not in last_bot_messages:
         return
     msgs = last_bot_messages[chat_id]
@@ -86,7 +83,8 @@ def show_main_menu(message):
 @bot.callback_query_handler(func=lambda call: call.data == 'menu_main')
 def menu_back_to_main(call):
     bot.answer_callback_query(call.id)
-    send_main_menu(call.message.chat.id, edit=True, message_id=call.message.message_id)
+    clear_chat(call.message.chat.id)
+    send_main_menu(call.message.chat.id, clean=False)
 
 
 # ============ ПОДМЕНЮ: ПРОФИЛЬ ============
@@ -113,7 +111,7 @@ def profile_fill(call):
     user = db.get_user(user_id)
     if user:
         safe_send(call.message.chat.id, "У тебя уже есть анкета. Используй «Посмотреть профиль».")
-        send_main_menu(call.message.chat.id)
+        send_main_menu(call.message.chat.id, clean=False)
         return
     safe_send(
         call.message.chat.id,
@@ -131,10 +129,7 @@ def profile_view(call):
     user = db.get_user(user_id)
 
     if not user:
-        safe_send(
-            call.message.chat.id,
-            "❌ Ты ещё не заполнил анкету.\nНажми «📝 Заполнить анкету»."
-        )
+        safe_send(call.message.chat.id, "❌ Ты ещё не заполнил анкету.\nНажми «📝 Заполнить анкету».")
         send_main_menu(call.message.chat.id, clean=False)
         return
 
@@ -151,7 +146,7 @@ def profile_view(call):
         f"🎁 Вишлист: {user.get('wishlist') or 'не указан'}\n"
     )
     safe_send(call.message.chat.id, text, parse_mode='Markdown')
-    send_main_menu(call.message.chat.id, clean=False)   
+    send_main_menu(call.message.chat.id, clean=False)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'profile_wishlist')
@@ -164,7 +159,7 @@ def profile_wishlist(call):
 
     if not user:
         safe_send(call.message.chat.id, "❌ Ты ещё не заполнил анкету.")
-        send_main_menu(call.message.chat.id)
+        send_main_menu(call.message.chat.id, clean=False)
         return
 
     current = user.get('wishlist') or 'не указан'
@@ -202,7 +197,7 @@ def process_new_wishlist(message):
         f"🎁 Вишлист: {user.get('wishlist') or 'не указан'}\n"
     )
     safe_send(message.chat.id, text_out, parse_mode='Markdown')
-    send_main_menu(message.chat.id)
+    send_main_menu(message.chat.id, clean=False)
 
 
 # ============ ПОДМЕНЮ: КАЛЕНДАРЬ ============
@@ -297,7 +292,7 @@ def fund_create(call):
 
     if not user:
         safe_send(call.message.chat.id, "❌ Сначала заполни анкету.")
-        send_main_menu(call.message.chat.id)
+        send_main_menu(call.message.chat.id, clean=False)
         return
 
     fund_data[user_id] = {'chat_id': call.message.chat.id}
@@ -319,7 +314,7 @@ def fund_list(call):
 
     if not events:
         safe_send(call.message.chat.id, "📭 У тебя нет сборов.")
-        send_main_menu(call.message.chat.id)
+        send_main_menu(call.message.chat.id, clean=False)
         return
 
     text = "📋 **Твои сборы:**\n\n"
@@ -330,7 +325,7 @@ def fund_list(call):
             f"   {paid}/{len(e['participants'])} оплатили | {e['per_person_amount']} ₽\n\n"
         )
     safe_send(call.message.chat.id, text, parse_mode='Markdown')
-    send_main_menu(call.message.chat.id)
+    send_main_menu(call.message.chat.id, clean=False)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'fund_all')
@@ -344,7 +339,7 @@ def show_all_funds(message):
     events = db.get_all_active_events()
     if not events:
         safe_send(message.chat.id, "📭 Активных сборов нет.")
-        send_main_menu(message.chat.id)
+        send_main_menu(message.chat.id, clean=False)
         return
 
     safe_send(message.chat.id, f"📊 **Все активные сборы:** {len(events)}")
@@ -364,7 +359,7 @@ def show_all_funds(message):
         )
         safe_send(message.chat.id, text, parse_mode='Markdown', reply_markup=markup)
 
-    send_main_menu(message.chat.id)
+    send_main_menu(message.chat.id, clean=False)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('fund_show_'))
@@ -385,6 +380,7 @@ def fund_show_details(call):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("✅ Я перевёл(а)", callback_data=f"fund_paid_{event_id}"))
     safe_send(call.message.chat.id, text, parse_mode='Markdown', reply_markup=markup)
+    send_main_menu(call.message.chat.id, clean=False)
     bot.answer_callback_query(call.id)
 
 
@@ -482,7 +478,7 @@ def process_wishlist(message):
 
     del user_data[user_id]
     safe_send(message.chat.id, "✅ Анкета заполнена!")
-    send_main_menu(message.chat.id)
+    send_main_menu(message.chat.id, clean=False)
 
 
 # ============ КОМАНДЫ ПРОФИЛЯ ============
@@ -495,7 +491,7 @@ def show_profile(message):
 
     if not user:
         safe_send(message.chat.id, "Ты ещё не заполнил анкету. Напиши /start")
-        send_main_menu(message.chat.id)
+        send_main_menu(message.chat.id, clean=False)
         return
 
     gender_map = {'male': '👨 Мужской', 'female': '👩 Женский', 'unknown': '❓ Не указан'}
@@ -511,7 +507,7 @@ def show_profile(message):
         f"🎁 Вишлист: {user.get('wishlist') or 'не указан'}\n"
     )
     safe_send(message.chat.id, text, parse_mode='Markdown')
-    send_main_menu(message.chat.id)
+    send_main_menu(message.chat.id, clean=False)
 
 
 @bot.message_handler(commands=['edit_wishlist'])
@@ -522,7 +518,7 @@ def edit_wishlist(message):
 
     if not user:
         safe_send(message.chat.id, "Сначала заполни анкету командой /start")
-        send_main_menu(message.chat.id)
+        send_main_menu(message.chat.id, clean=False)
         return
 
     current = user.get('wishlist') or 'не указан'
@@ -542,7 +538,7 @@ def show_upcoming(message):
     upcoming = db.get_upcoming_birthdays(days_ahead=30)
     if not upcoming:
         safe_send(message.chat.id, "📭 В ближайшие 30 дней ДР нет.")
-        send_main_menu(message.chat.id)
+        send_main_menu(message.chat.id, clean=False)
         return
 
     text = "🎂 **Ближайшие дни рождения (30 дней):**\n\n"
@@ -559,7 +555,7 @@ def show_upcoming(message):
             text += f"   🎈 Исполнится: {item['turning_age']} лет\n"
         text += "\n"
     safe_send(message.chat.id, text, parse_mode='Markdown')
-    send_main_menu(message.chat.id)
+    send_main_menu(message.chat.id, clean=False)
 
 
 @bot.message_handler(commands=['today'])
@@ -568,7 +564,7 @@ def show_today(message):
     upcoming = db.get_upcoming_birthdays(days_ahead=0)
     if not upcoming:
         safe_send(message.chat.id, "📭 Сегодня ДР нет.")
-        send_main_menu(message.chat.id)
+        send_main_menu(message.chat.id, clean=False)
         return
 
     text = "🎉 **Сегодня день рождения у:**\n\n"
@@ -579,7 +575,7 @@ def show_today(message):
             text += f" (@{user['username']})"
         text += "\n"
     safe_send(message.chat.id, text, parse_mode='Markdown')
-    send_main_menu(message.chat.id)
+    send_main_menu(message.chat.id, clean=False)
 
 
 @bot.message_handler(commands=['birthdays'])
@@ -588,7 +584,7 @@ def show_all_birthdays(message):
     birthdays = db.get_all_birthdays()
     if not birthdays:
         safe_send(message.chat.id, "📭 В базе нет ДР.")
-        send_main_menu(message.chat.id)
+        send_main_menu(message.chat.id, clean=False)
         return
 
     text = "📅 **Все дни рождения:**\n"
@@ -605,7 +601,7 @@ def show_all_birthdays(message):
             text += f" ({date.today().year - user['birth_year']} лет)"
         text += "\n"
     safe_send(message.chat.id, text, parse_mode='Markdown')
-    send_main_menu(message.chat.id)
+    send_main_menu(message.chat.id, clean=False)
 
 
 # ============ ОБЩЕЕ ============
@@ -616,7 +612,7 @@ def show_all_users(message):
     users = db.get_all_users()
     if not users:
         safe_send(message.chat.id, "📭 В базе нет пользователей.")
-        send_main_menu(message.chat.id)
+        send_main_menu(message.chat.id, clean=False)
         return
 
     text = "👥 **Пользователи:**\n\n"
@@ -625,7 +621,7 @@ def show_all_users(message):
         g = gender_map.get(u['gender'], '❓')
         text += f"{g} {u['full_name']} (@{u['username']}) — ДР: {u['birth_day']:02d}.{u['birth_month']:02d}\n"
     safe_send(message.chat.id, text, parse_mode='Markdown')
-    send_main_menu(message.chat.id)
+    send_main_menu(message.chat.id, clean=False)
 
 
 @bot.message_handler(commands=['help'])
@@ -644,7 +640,7 @@ def show_help(message):
         "• /all_users — все пользователи\n"
     )
     safe_send(message.chat.id, text)
-    send_main_menu(message.chat.id)
+    send_main_menu(message.chat.id, clean=False)
 
 
 # ============ МАСТЕР СБОРОВ ============
@@ -656,7 +652,7 @@ def create_fund_start(message):
     user = db.get_user(user_id)
     if not user:
         safe_send(message.chat.id, "Сначала заполни анкету /start")
-        send_main_menu(message.chat.id)
+        send_main_menu(message.chat.id, clean=False)
         return
     fund_data[user_id] = {'chat_id': message.chat.id}
     safe_send(message.chat.id, "🎁 **Создание сбора**\n\nШаг 1/5: Введи **название сбора**.", parse_mode='Markdown')
@@ -783,7 +779,7 @@ def fund_step_payers(call):
             print(f"⚠️ Не отправлено {p['user_id']}: {e}")
 
     del fund_data[user_id]
-    send_main_menu(call.message.chat.id)
+    send_main_menu(call.message.chat.id, clean=False)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('fund_paid_'))
@@ -805,7 +801,7 @@ def show_my_funds(message):
     events = db.get_events_by_creator(message.from_user.id)
     if not events:
         safe_send(message.chat.id, "📭 У тебя нет сборов.")
-        send_main_menu(message.chat.id)
+        send_main_menu(message.chat.id, clean=False)
         return
     text = "📋 **Твои сборы:**\n\n"
     for e in events:
@@ -815,7 +811,7 @@ def show_my_funds(message):
             f"   {paid}/{len(e['participants'])} оплатили | {e['per_person_amount']} ₽\n\n"
         )
     safe_send(message.chat.id, text, parse_mode='Markdown')
-    send_main_menu(message.chat.id)
+    send_main_menu(message.chat.id, clean=False)
 
 
 if __name__ == '__main__':
