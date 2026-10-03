@@ -695,6 +695,7 @@ def fund_step_payers(call):
             print(f"⚠️ Не отправлено {p['user_id']}: {e}")
 
     del fund_data[user_id]
+    send_main_menu(call.message.chat.id)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('fund_paid_'))
