@@ -3,18 +3,14 @@ from telebot import types
 import re
 import db
 
-# Инициализация базы данных при запуске
 db.init_db()
 
-# Токен (лучше вынести в .env, но пока оставим так для теста)
 TOKEN = '8856407895:AAHnKzDYAaHUUrpCxJxtggI-BwUprTRML0Y'
 bot = telebot.TeleBot(TOKEN)
 
-# Временное хранилище для данных анкеты (в памяти)
 user_data = {}
 
 
-# ---------- КОМАНДА /start ----------
 @bot.message_handler(commands=['start'])
 def start(message):
     user_id = message.from_user.id
@@ -25,9 +21,8 @@ def start(message):
     else:
         bot.send_message(
             message.chat.id,
-            f"Привет, {message.from_user.first_name}! 👋\n\n"
-            "Я бот для организации корпоративных сборов и поздравлений.\n"
-            "Давай заполним твою анкету. Это займёт минуту.\n\n"
+            f"Привет, {message.from_user.first_name}!\n\n"
+            "Здесь типо приветственный текст\n"
             "Укажи свой **пол**:",
             parse_mode='Markdown',
             reply_markup=get_gender_keyboard()
@@ -37,13 +32,12 @@ def start(message):
 
 def get_gender_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
-    btn_male = types.InlineKeyboardButton("👨 Мужской", callback_data="gender_male")
-    btn_female = types.InlineKeyboardButton("👩 Женский", callback_data="gender_female")
+    btn_male = types.InlineKeyboardButton("Мужской", callback_data="gender_male")
+    btn_female = types.InlineKeyboardButton("Женский", callback_data="gender_female")
     markup.add(btn_male, btn_female)
     return markup
 
 
-# ---------- ОБРАБОТКА ВЫБОРА ПОЛА (кнопкой) ----------
 @bot.callback_query_handler(func=lambda call: call.data.startswith('gender_'))
 def callback_gender(call):
     user_id = call.from_user.id
@@ -57,14 +51,13 @@ def callback_gender(call):
     bot.edit_message_text(
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
-        text="Отлично! Теперь напиши свою **дату рождения** в формате `ДД.ММ` (например, `15.03`).\n"
-             "Год можно не указывать, если не хочешь.",
+        text="Отлично! Теперь напиши свою **дату рождения** в формате `ДД.ММ` (например, `15.03`, `03.10`).\n"
+             "Год не обязательно указывать.",
         parse_mode='Markdown'
     )
     bot.register_next_step_handler(call.message, process_birthday)
 
 
-# ---------- ОБРАБОТКА ПОЛА (текстом, если не нажал кнопку) ----------
 def process_gender(message):
     user_id = message.from_user.id
     text = message.text.strip().lower()
@@ -90,7 +83,6 @@ def process_gender(message):
     bot.register_next_step_handler(message, process_birthday)
 
 
-# ---------- ОБРАБОТКА ДАТЫ РОЖДЕНИЯ ----------
 def process_birthday(message):
     user_id = message.from_user.id
     text = message.text.strip()
@@ -120,14 +112,12 @@ def process_birthday(message):
     
     bot.send_message(
         message.chat.id,
-        "Принято! 📅\n\n"
         "Теперь напиши свой **вишлист** (список желаемых подарков).\n"
         "Это может быть просто текст или ссылки. Если не хочешь — напиши «Пропустить».",
     )
     bot.register_next_step_handler(message, process_wishlist)
 
 
-# ---------- ОБРАБОТКА ВИШЛИСТА ----------
 def process_wishlist(message):
     user_id = message.from_user.id
     text = message.text.strip()
@@ -151,13 +141,11 @@ def process_wishlist(message):
     
     bot.send_message(
         message.chat.id,
-        "✅ Анкета заполнена! Спасибо.\n\n"
+        "Анкета заполнена\n\n"
         "Теперь ты можешь посмотреть свой профиль командой /profile.\n"
-        "А организаторы могут создавать сборы командой /create_fund (скоро)."
     )
 
 
-# ---------- КОМАНДА /profile ----------
 @bot.message_handler(commands=['profile'])
 def show_profile(message):
     user_id = message.from_user.id
@@ -184,7 +172,6 @@ def show_profile(message):
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
 
-# ---------- КОМАНДА /all_users (только для тестов) ----------
 @bot.message_handler(commands=['all_users'])
 def show_all_users(message):
     users = db.get_all_users()
@@ -194,7 +181,6 @@ def show_all_users(message):
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
 
-# ---------- ЗАПУСК ----------
 if __name__ == '__main__':
     print("Бот запущен...")
     bot.infinity_polling()
