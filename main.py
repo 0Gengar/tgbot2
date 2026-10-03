@@ -7,7 +7,7 @@ import db
 db.init_db()
 
 # Токен (лучше вынести в .env, но пока оставим так для теста)
-TOKEN = 'ВАШ_НОВЫЙ_ТОКЕН_ЗДЕСЬ'
+TOKEN = '8856407895:AAHnKzDYAaHUUrpCxJxtggI-BwUprTRML0Y'
 bot = telebot.TeleBot(TOKEN)
 
 # Временное хранилище для данных анкеты (в памяти)
