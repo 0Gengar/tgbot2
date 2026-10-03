@@ -320,27 +320,7 @@ def show_all_birthdays(message):
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
 
-@bot.message_handler(commands=['help'])
-def show_help(message):
-    text = """🤖 **Доступные команды:**
 
-👤 **Профиль:**
-• /start — заполнить или показать анкету
-• /profile — посмотреть свою анкету
-• /edit_wishlist — изменить вишлист
-
-🎂 **Календарь дней рождения:**
-• /upcoming — ближайшие ДР за 30 дней
-• /today — у кого ДР сегодня
-• /birthdays — все дни рождения
-
-👥 **Общее:**
-• /all_users — список всех пользователей
-• /help — эта справка
-
-🎁 **Сборы (скоро):**
-• /create_fund — создать сбор"""
-    bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
 
 if __name__ == '__main__':
