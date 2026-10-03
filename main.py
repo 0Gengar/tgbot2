@@ -437,6 +437,7 @@ def show_upcoming(message):
     upcoming = db.get_upcoming_birthdays(days_ahead=30)
     if not upcoming:
         bot.send_message(message.chat.id, "📭 В ближайшие 30 дней ДР нет.")
+        send_main_menu(message.chat.id)
         return
 
     text = "🎂 **Ближайшие дни рождения (30 дней):**\n\n"
@@ -453,6 +454,7 @@ def show_upcoming(message):
             text += f"   🎈 Исполнится: {item['turning_age']} лет\n"
         text += "\n"
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
+    send_main_menu(message.chat.id)
 
 
 @bot.message_handler(commands=['today'])
@@ -460,6 +462,7 @@ def show_today(message):
     upcoming = db.get_upcoming_birthdays(days_ahead=0)
     if not upcoming:
         bot.send_message(message.chat.id, "📭 Сегодня ДР нет.")
+        send_main_menu(message.chat.id)
         return
 
     text = "🎉 **Сегодня день рождения у:**\n\n"
@@ -470,6 +473,7 @@ def show_today(message):
             text += f" (@{user['username']})"
         text += "\n"
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
+    send_main_menu(message.chat.id)
 
 
 @bot.message_handler(commands=['birthdays'])
@@ -477,6 +481,7 @@ def show_all_birthdays(message):
     birthdays = db.get_all_birthdays()
     if not birthdays:
         bot.send_message(message.chat.id, "📭 В базе нет ДР.")
+        send_main_menu(message.chat.id)
         return
 
     text = "📅 **Все дни рождения:**\n"
@@ -493,6 +498,7 @@ def show_all_birthdays(message):
             text += f" ({date.today().year - user['birth_year']} лет)"
         text += "\n"
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
+    send_main_menu(message.chat.id)
 
 
 # ============ ОБЩЕЕ ============
