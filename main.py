@@ -13,6 +13,12 @@ user_data = {}
 menu_messages = {}
 fund_data = {}
 
+def fake_message_from_call(call):
+    """Создаёт объект message с правильным from_user из call."""
+    msg = call.message
+    msg.from_user = call.from_user
+    return msg
+
 
 # ============ ГЛАВНОЕ МЕНЮ ============
 
