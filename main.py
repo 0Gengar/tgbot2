@@ -220,21 +220,78 @@ def menu_calendar(call):
 def cal_upcoming(call):
     bot.answer_callback_query(call.id)
     clear_chat(call.message.chat.id)
-    show_upcoming(call.message)
+
+    upcoming = db.get_upcoming_birthdays(days_ahead=30)
+    if not upcoming:
+        safe_send(call.message.chat.id, "📭 В ближайшие 30 дней ДР нет.")
+        send_main_menu(call.message.chat.id, clean=False)
+        return
+
+    text = "🎂 **Ближайшие дни рождения (30 дней):**\n\n"
+    for item in upcoming:
+        user = item['user']
+        days_left = item['days_left']
+        bday = item['date']
+        when = "🎉 **СЕГОДНЯ!**" if days_left == 0 else ("⏰ Завтра" if days_left == 1 else f"⏳ Через {days_left} дн.")
+        text += f"👤 **{user['full_name']}**"
+        if user.get('username'):
+            text += f" (@{user['username']})"
+        text += f"\n   📅 {bday.strftime('%d.%m.%Y')} — {when}\n"
+        if item['turning_age']:
+            text += f"   🎈 Исполнится: {item['turning_age']} лет\n"
+        text += "\n"
+    safe_send(call.message.chat.id, text, parse_mode='Markdown')
+    send_main_menu(call.message.chat.id, clean=False)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'cal_today')
 def cal_today(call):
     bot.answer_callback_query(call.id)
     clear_chat(call.message.chat.id)
-    show_today(call.message)
+
+    upcoming = db.get_upcoming_birthdays(days_ahead=0)
+    if not upcoming:
+        safe_send(call.message.chat.id, "📭 Сегодня ДР нет.")
+        send_main_menu(call.message.chat.id, clean=False)
+        return
+
+    text = "🎉 **Сегодня день рождения у:**\n\n"
+    for item in upcoming:
+        user = item['user']
+        text += f"👤 **{user['full_name']}**"
+        if user.get('username'):
+            text += f" (@{user['username']})"
+        text += "\n"
+    safe_send(call.message.chat.id, text, parse_mode='Markdown')
+    send_main_menu(call.message.chat.id, clean=False)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'cal_all')
 def cal_all(call):
     bot.answer_callback_query(call.id)
     clear_chat(call.message.chat.id)
-    show_all_birthdays(call.message)
+
+    birthdays = db.get_all_birthdays()
+    if not birthdays:
+        safe_send(call.message.chat.id, "📭 В базе нет ДР.")
+        send_main_menu(call.message.chat.id, clean=False)
+        return
+
+    text = "📅 **Все дни рождения:**\n"
+    month_names = {1:"Январь",2:"Февраль",3:"Март",4:"Апрель",5:"Май",6:"Июнь",
+                   7:"Июль",8:"Август",9:"Сентябрь",10:"Октябрь",11:"Ноябрь",12:"Декабрь"}
+    current_month = None
+    for item in birthdays:
+        user = item['user']; month = item['month']; day = item['day']
+        if month != current_month:
+            text += f"\n🗓 **{month_names[month]}**\n"
+            current_month = month
+        text += f"   • {day:02d}.{month:02d} — {user['full_name']}"
+        if user.get('birth_year'):
+            text += f" ({date.today().year - user['birth_year']} лет)"
+        text += "\n"
+    safe_send(call.message.chat.id, text, parse_mode='Markdown')
+    send_main_menu(call.message.chat.id, clean=False)
 
 
 # ============ ПОДМЕНЮ: ОБЩЕЕ ============
@@ -256,14 +313,41 @@ def menu_general(call):
 def gen_users(call):
     bot.answer_callback_query(call.id)
     clear_chat(call.message.chat.id)
-    show_all_users(call.message)
+
+    users = db.get_all_users()
+    if not users:
+        safe_send(call.message.chat.id, "📭 В базе нет пользователей.")
+        send_main_menu(call.message.chat.id, clean=False)
+        return
+
+    text = "👥 **Пользователи:**\n\n"
+    for u in users:
+        gender_map = {'male': '👨', 'female': '👩', 'unknown': '❓'}
+        g = gender_map.get(u['gender'], '❓')
+        text += f"{g} {u['full_name']} (@{u['username']}) — ДР: {u['birth_day']:02d}.{u['birth_month']:02d}\n"
+    safe_send(call.message.chat.id, text, parse_mode='Markdown')
+    send_main_menu(call.message.chat.id, clean=False)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'gen_help')
 def gen_help(call):
     bot.answer_callback_query(call.id)
     clear_chat(call.message.chat.id)
-    show_help(call.message)
+
+    text = (
+        "🤖 Доступные команды:\n\n"
+        "• /menu — главное меню\n"
+        "• /start — регистрация\n"
+        "• /profile — профиль\n"
+        "• /create_fund — создать сбор\n"
+        "• /my_funds — мои сборы\n"
+        "• /upcoming — ближайшие ДР\n"
+        "• /today — ДР сегодня\n"
+        "• /birthdays — все ДР\n"
+        "• /all_users — все пользователи\n"
+    )
+    safe_send(call.message.chat.id, text)
+    send_main_menu(call.message.chat.id, clean=False)
 
 
 # ============ ПОДМЕНЮ: СБОРЫ ============
@@ -332,17 +416,14 @@ def fund_list(call):
 def fund_all(call):
     bot.answer_callback_query(call.id)
     clear_chat(call.message.chat.id)
-    show_all_funds(call.message)
 
-
-def show_all_funds(message):
     events = db.get_all_active_events()
     if not events:
-        safe_send(message.chat.id, "📭 Активных сборов нет.")
-        send_main_menu(message.chat.id, clean=False)
+        safe_send(call.message.chat.id, "📭 Активных сборов нет.")
+        send_main_menu(call.message.chat.id, clean=False)
         return
 
-    safe_send(message.chat.id, f"📊 **Все активные сборы:** {len(events)}")
+    safe_send(call.message.chat.id, f"📊 **Все активные сборы:** {len(events)}")
     for e in events:
         paid = sum(1 for p in e['participants'] if p['is_paid'])
         total_p = len(e['participants'])
@@ -357,9 +438,9 @@ def show_all_funds(message):
             types.InlineKeyboardButton("💸 Перевести", callback_data=f"fund_show_{e['event_id']}"),
             types.InlineKeyboardButton("✅ Я перевёл(а)", callback_data=f"fund_paid_{e['event_id']}")
         )
-        safe_send(message.chat.id, text, parse_mode='Markdown', reply_markup=markup)
+        safe_send(call.message.chat.id, text, parse_mode='Markdown', reply_markup=markup)
 
-    send_main_menu(message.chat.id, clean=False)
+    send_main_menu(call.message.chat.id, clean=False)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('fund_show_'))
@@ -689,8 +770,7 @@ def fund_step_type(call):
 
 def fund_step_amount(message):
     delete_user_message(message)
-    user_id = message.from_user.id
-    text = message.text.strip().lower()
+    user_id = message.from_user.id    text = message.text.strip().lower()
     per_person = None; total = None
     match_per = re.search(r'(\d+)\s*с\s*человека', text)
     if match_per:
@@ -791,7 +871,6 @@ def fund_mark_paid(call):
             call.message.chat.id, call.message.message_id,
             "✅ Спасибо! Ты отметил оплату."
         )
-        # Запоминаем отредактированное сообщение, чтобы потом удалить
         remember_message(call.message.chat.id, call.message.message_id)
     else:
         bot.answer_callback_query(call.id, "❌ Ошибка")
