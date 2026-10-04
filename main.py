@@ -770,8 +770,10 @@ def fund_step_type(call):
 
 def fund_step_amount(message):
     delete_user_message(message)
-    user_id = message.from_user.id    text = message.text.strip().lower()
-    per_person = None; total = None
+    user_id = message.from_user.id
+    text = message.text.strip().lower()
+    per_person = None
+    total = None
     match_per = re.search(r'(\d+)\s*с\s*человека', text)
     if match_per:
         per_person = int(match_per.group(1))
